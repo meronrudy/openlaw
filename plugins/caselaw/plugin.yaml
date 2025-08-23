@@ -83,50 +83,158 @@ dependencies:
 
 # Configuration schema
 configuration:
-  database:
-    type: "object"
-    required: true
-    properties:
-      url:
-        type: "string"
-        description: "PostgreSQL connection URL"
-      pool_size:
-        type: "integer"
-        default: 20
-      max_overflow:
-        type: "integer"
-        default: 30
-  
   storage:
     type: "object"
     required: true
     properties:
-      backend:
+      use_mock:
+        type: "boolean"
+        default: false
+        description: "Use mock storage for testing"
+      neo4j_enabled:
+        type: "boolean"
+        default: true
+        description: "Enable Neo4j graph database"
+      neo4j_uri:
         type: "string"
-        enum: ["postgresql", "elasticsearch"]
-        default: "postgresql"
-      elasticsearch_url:
+        default: "bolt://localhost:7687"
+        description: "Neo4j connection URI"
+      neo4j_user:
         type: "string"
-        description: "Elasticsearch cluster URL"
+        default: "neo4j"
+        description: "Neo4j username"
+      neo4j_password:
+        type: "string"
+        description: "Neo4j password"
+      redis_enabled:
+        type: "boolean"
+        default: true
+        description: "Enable Redis caching"
       redis_url:
         type: "string"
-        description: "Redis cache URL"
+        default: "redis://localhost:6379"
+        description: "Redis connection URL"
+      redis_db:
+        type: "integer"
+        default: 0
+        description: "Redis database number"
+      elasticsearch_enabled:
+        type: "boolean"
+        default: true
+        description: "Enable Elasticsearch search"
+      elasticsearch_hosts:
+        type: "array"
+        default: ["localhost:9200"]
+        description: "Elasticsearch host list"
+      elasticsearch_index_prefix:
+        type: "string"
+        default: "caselaw"
+        description: "Elasticsearch index prefix"
   
-  processing:
+  ingestion:
     type: "object"
     properties:
-      batch_size:
+      auto_start_ingestion:
+        type: "boolean"
+        default: false
+        description: "Auto-start HuggingFace ingestion on plugin init"
+      enable_background_ingestion:
+        type: "boolean"
+        default: true
+        description: "Enable background ingestion processing"
+      ingestion_batch_size:
         type: "integer"
         default: 1000
-      max_workers:
+        description: "Batch size for HuggingFace ingestion"
+      ingestion_max_workers:
         type: "integer"
         default: 10
+        description: "Maximum workers for ingestion processing"
+      dataset_name:
+        type: "string"
+        default: "harvard-lil/cap-us-court-opinions"
+        description: "HuggingFace dataset identifier"
+      checkpoint_frequency:
+        type: "integer"
+        default: 1000
+        description: "Save checkpoint every N documents"
+  
+  extraction:
+    type: "object"
+    properties:
       enable_ml_citation_extraction:
         type: "boolean"
         default: true
-      confidence_threshold:
+        description: "Enable ML-enhanced citation extraction"
+      citation_confidence_threshold:
         type: "number"
         default: 0.7
+        description: "Minimum confidence for citation extraction"
+      relationship_confidence_threshold:
+        type: "number"
+        default: 0.6
+        description: "Minimum confidence for relationship extraction"
+      enable_spacy_models:
+        type: "boolean"
+        default: true
+        description: "Enable spaCy NLP models for extraction"
+  
+  reasoning:
+    type: "object"
+    properties:
+      temporal_analysis_enabled:
+        type: "boolean"
+        default: true
+        description: "Enable temporal reasoning analysis"
+      jurisdictional_analysis_enabled:
+        type: "boolean"
+        default: true
+        description: "Enable jurisdictional reasoning analysis"
+      precedent_strength_threshold:
+        type: "number"
+        default: 0.5
+        description: "Minimum precedent strength threshold"
+      authority_confidence_threshold:
+        type: "number"
+        default: 0.7
+        description: "Minimum authority analysis confidence"
+  
+  api:
+    type: "object"
+    properties:
+      enable_query_api:
+        type: "boolean"
+        default: true
+        description: "Enable query API endpoints"
+      enable_provenance_api:
+        type: "boolean"
+        default: true
+        description: "Enable provenance API endpoints"
+      max_search_results:
+        type: "integer"
+        default: 100
+        description: "Maximum search results per query"
+      query_timeout:
+        type: "integer"
+        default: 30
+        description: "Query timeout in seconds"
+  
+  logging:
+    type: "object"
+    properties:
+      log_level:
+        type: "string"
+        enum: ["DEBUG", "INFO", "WARNING", "ERROR"]
+        default: "INFO"
+        description: "Logging level"
+      enable_performance_logging:
+        type: "boolean"
+        default: false
+        description: "Enable detailed performance logging"
+      enable_audit_logging:
+        type: "boolean"
+        default: true
+        description: "Enable audit trail logging"
 
 # API endpoints
 api_endpoints:
