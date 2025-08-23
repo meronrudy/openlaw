@@ -1,0 +1,214 @@
+name: "caselaw_access_project"
+version: "1.0.0"
+display_name: "Case Law Access Project"
+description: "Harvard Law CAP caselaw corpus with provenance tracking and hypergraph integration"
+author: "OpenLaw Team"
+license: "MIT"
+
+# Plugin classification
+plugin_type: "data_source"
+domain: "legal_caselaw"
+
+# Capabilities provided by this plugin
+capabilities:
+  - name: "case_precedent_analysis"
+    description: "Analyze case law precedents for legal concepts"
+    input_types: ["legal_concept", "jurisdiction", "date_range"]
+    output_types: ["precedent_analysis", "authority_hierarchy"]
+    enhancement_compatible: true
+  
+  - name: "citation_resolution"
+    description: "Resolve legal citations to canonical case references"
+    input_types: ["citation_text", "jurisdiction"]
+    output_types: ["resolved_citation", "case_reference"]
+    enhancement_compatible: true
+  
+  - name: "provenance_tracing"
+    description: "Provide complete audit trails for legal reasoning"
+    input_types: ["entity_id", "reasoning_path"]
+    output_types: ["provenance_trace", "source_verification"]
+    enhancement_compatible: false
+  
+  - name: "temporal_authority_analysis"
+    description: "Analyze temporal relationships and precedential authority"
+    input_types: ["case_relationship", "temporal_context"]
+    output_types: ["authority_evaluation", "temporal_analysis"]
+    enhancement_compatible: true
+
+# Hypergraph schema
+hypergraph:
+  node_types:
+    - "case"
+    - "citation"
+    - "court"
+    - "judge"
+    - "legal_concept"
+    - "paragraph"
+  
+  edge_types:
+    - "cites_case"
+    - "distinguishes"
+    - "overrules"
+    - "follows"
+    - "decided_by"
+    - "contains_paragraph"
+    - "references_concept"
+
+# Data sources
+data_sources:
+  - name: "harvard_cap_dataset"
+    type: "huggingface"
+    dataset_id: "harvard-lil/cap-us-court-opinions"
+    streaming: true
+    estimated_size: "37M+ documents"
+  
+  - name: "cap_api"
+    type: "rest_api"
+    base_url: "https://api.case.law/v1/"
+    rate_limit: "1000/hour"
+
+# Dependencies
+dependencies:
+  python: ">=3.9"
+  core_plugins: []
+  external_packages:
+    - "datasets>=2.0.0"
+    - "transformers>=4.20.0"
+    - "spacy>=3.4.0"
+    - "sqlalchemy>=2.0.0"
+    - "pydantic>=2.0.0"
+    - "fastapi>=0.100.0"
+    - "redis>=4.0.0"
+    - "elasticsearch>=8.0.0"
+
+# Configuration schema
+configuration:
+  database:
+    type: "object"
+    required: true
+    properties:
+      url:
+        type: "string"
+        description: "PostgreSQL connection URL"
+      pool_size:
+        type: "integer"
+        default: 20
+      max_overflow:
+        type: "integer"
+        default: 30
+  
+  storage:
+    type: "object"
+    required: true
+    properties:
+      backend:
+        type: "string"
+        enum: ["postgresql", "elasticsearch"]
+        default: "postgresql"
+      elasticsearch_url:
+        type: "string"
+        description: "Elasticsearch cluster URL"
+      redis_url:
+        type: "string"
+        description: "Redis cache URL"
+  
+  processing:
+    type: "object"
+    properties:
+      batch_size:
+        type: "integer"
+        default: 1000
+      max_workers:
+        type: "integer"
+        default: 10
+      enable_ml_citation_extraction:
+        type: "boolean"
+        default: true
+      confidence_threshold:
+        type: "number"
+        default: 0.7
+
+# API endpoints
+api_endpoints:
+  - path: "/api/v1/caselaw/search"
+    methods: ["GET", "POST"]
+    description: "Search case law corpus"
+  
+  - path: "/api/v1/caselaw/cases/{case_id}"
+    methods: ["GET"]
+    description: "Retrieve specific case by ID"
+  
+  - path: "/api/v1/caselaw/citations/resolve"
+    methods: ["POST"]
+    description: "Resolve legal citations"
+  
+  - path: "/api/v1/caselaw/precedents"
+    methods: ["POST"]
+    description: "Query precedents for legal concepts"
+  
+  - path: "/api/v1/caselaw/provenance/{entity_id}"
+    methods: ["GET"]
+    description: "Trace entity provenance"
+
+# Metrics and monitoring
+metrics:
+  - name: "citation_extraction_accuracy"
+    type: "gauge"
+    description: "Accuracy of citation extraction"
+  
+  - name: "query_latency"
+    type: "histogram"
+    description: "Query response time"
+  
+  - name: "ingestion_rate"
+    type: "counter"
+    description: "Cases ingested per second"
+  
+  - name: "database_connections_active"
+    type: "gauge"
+    description: "Active database connections"
+
+# Health checks
+health_checks:
+  - name: "database_connectivity"
+    endpoint: "/health/database"
+    interval: "30s"
+  
+  - name: "elasticsearch_connectivity"
+    endpoint: "/health/elasticsearch"
+    interval: "60s"
+  
+  - name: "citation_extraction_service"
+    endpoint: "/health/citation-extraction"
+    interval: "60s"
+
+# Plugin lifecycle
+lifecycle:
+  initialization:
+    - "initialize_database_schema"
+    - "load_citation_models"
+    - "setup_hypergraph_indices"
+    - "validate_configuration"
+  
+  startup:
+    - "connect_to_database"
+    - "initialize_cache"
+    - "start_background_workers"
+  
+  shutdown:
+    - "stop_background_workers"
+    - "close_database_connections"
+    - "cleanup_temporary_files"
+
+# Enhancement hooks
+enhancement_hooks:
+  pre_analysis: "pre_analysis_enhancement"
+  post_analysis: "post_analysis_enhancement"
+  cross_plugin_composition: "compose_with_caselaw"
+
+# Security
+security:
+  authentication_required: true
+  rate_limiting: true
+  api_key_required: true
+  audit_logging: true
