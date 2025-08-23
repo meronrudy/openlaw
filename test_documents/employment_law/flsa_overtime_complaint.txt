@@ -1,0 +1,73 @@
+EMPLOYMENT COMPLAINT FORM
+FAIR LABOR STANDARDS ACT VIOLATION
+
+Employee Information:
+Name: Michael Rodriguez
+Employee ID: 5678
+Position: Warehouse Associate
+Department: Distribution Operations
+Hire Date: August 1, 2023
+
+Complaint Details:
+Filing Date: March 22, 2024
+Subject: Unpaid Overtime Wages and FLSA Violations
+
+VIOLATION SUMMARY:
+I am filing this complaint regarding systematic violations of the Fair Labor Standards Act (FLSA), 29 U.S.C. § 207, by ABC Distribution Company. I have been classified as a non-exempt hourly employee earning $18.50 per hour, yet I have been denied proper overtime compensation for hours worked over 40 per week.
+
+DETAILED WORK RECORDS:
+Week of March 4-10, 2024:
+- Monday: 8.5 hours (7:00 AM - 4:00 PM)
+- Tuesday: 9.0 hours (7:00 AM - 4:30 PM)
+- Wednesday: 8.0 hours (7:00 AM - 3:30 PM)
+- Thursday: 10.5 hours (7:00 AM - 6:00 PM)
+- Friday: 9.5 hours (7:00 AM - 5:00 PM)
+- Saturday: 6.0 hours (8:00 AM - 2:30 PM)
+TOTAL: 51.5 hours
+
+Week of March 11-17, 2024:
+- Monday: 9.0 hours
+- Tuesday: 8.5 hours
+- Wednesday: 9.5 hours
+- Thursday: 8.0 hours
+- Friday: 10.0 hours
+- Saturday: 4.5 hours
+TOTAL: 49.5 hours
+
+OVERTIME VIOLATIONS:
+1. I worked 11.5 hours over 40 in the first week, entitled to time-and-a-half pay ($27.75/hour) for those hours
+2. I worked 9.5 hours over 40 in the second week, also entitled to overtime rate
+3. Total unpaid overtime: 21 hours at $27.75/hour = $582.75
+
+ADDITIONAL FLSA VIOLATIONS:
+1. Off-the-clock work: Supervisor John Davis routinely instructed warehouse staff to clock out at 4:00 PM but continue working until 5:00 PM to "finish the shift"
+
+2. Improper break deductions: Company deducts 30 minutes for lunch break even when we work through lunch due to heavy shipment volume
+
+3. Time clock manipulation: Manager told us to round down time entries to avoid overtime calculations
+
+SUPPORTING EVIDENCE:
+- Personal time logs maintained for 8 weeks
+- Text messages from supervisor instructing off-the-clock work
+- Photos of time clock showing actual hours vs. recorded hours
+- Witness statements from coworkers Maria Santos and David Kim
+
+REQUESTED REMEDIES:
+1. Payment of all unpaid overtime wages at time-and-a-half rate
+2. Liquidated damages equal to unpaid wages per 29 U.S.C. § 216(b)
+3. Correction of timekeeping practices to comply with FLSA
+4. Assurance of no retaliation for filing this complaint
+
+I understand that the FLSA requires employers to pay overtime compensation at not less than one and one-half times the regular rate of pay for hours worked over 40 in a workweek. My employer's failure to pay proper overtime wages violates federal law.
+
+I request immediate investigation and remediation of these violations.
+
+Signature: Michael Rodriguez
+Date: March 22, 2024
+
+Witness: Maria Santos, Warehouse Associate
+Witness: David Kim, Warehouse Associate
+
+cc: Department of Labor, Wage and Hour Division
+    ABC Distribution Company HR Department
+    Personal Employment Attorney (if retained)
