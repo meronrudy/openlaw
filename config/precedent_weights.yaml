@@ -1,0 +1,49 @@
+# Precedent authority scoring configuration
+#
+# Purpose:
+# - Provide tunable parameters to compute an authority score A for precedents and treatments.
+# - Future work: Multiply clause contributions by A to refine precedent_weighted aggregation.
+#
+# Model sketch (for reference):
+#   A = level_weight[court_level] * juris_alignment * recency_decay(year) * treatment_modifier[treatment]
+#
+# Notes:
+# - This file is consumed by the NativeLegalBridge authority model (_compute_authority_multipliers).
+# - Safe defaults: neutral alignment=1.0, mild decay, moderate treatment modifiers.
+
+recency:
+  # Half-life years controls exponential decay for older precedents (smaller = faster decay)
+  half_life_years: 10
+  # Minimum recency multiplier to avoid zeroing out support from older but controlling cases
+  min_multiplier: 0.5
+
+jurisdiction_alignment:
+  # Alignment multiplier when jurisdiction matches exactly
+  exact: 1.0
+  # Parent/ancestor jurisdiction (e.g., federal to state) multiplier
+  ancestor: 0.9
+  # Sibling state or parallel court multiplier
+  sibling: 0.85
+  # Foreign or out-of-network multiplier
+  foreign: 0.75
+
+court_levels:
+  # Federal
+  US_SCOTUS: 1.00
+  US_CIRCUIT: 0.90
+  US_DISTRICT: 0.80
+  # State
+  STATE_SUPREME: 0.95
+  STATE_APPEALS: 0.88
+  STATE_TRIAL: 0.78
+  # Administrative/Other (adjust as needed)
+  AGENCY: 0.70
+  OTHER: 0.65
+
+treatment_modifier:
+  followed: 1.08
+  positive: 1.03
+  neutral: 1.00
+  criticized: 0.90
+  distinguished: 0.88
+  overruled: 0.50

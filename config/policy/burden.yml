@@ -1,0 +1,23 @@
+# Burden-of-proof policy configuration for legal reasoning v1 (U.S.-only)
+# DEFAULT_BURDEN applies when no override is found for the jurisdiction/claim.
+# BURDEN_OVERRIDES can specify thresholds per jurisdiction and per-claim.
+# Thresholds map to annotation functions:
+#   >= 0.90 -> legal_burden_criminal_090
+#   >= 0.75 -> legal_burden_clear_075
+#   else    -> legal_burden_civil_051
+
+DEFAULT_BURDEN: 0.51
+
+BURDEN_OVERRIDES:
+  US-FED:
+    criminal: 0.90
+  US-CA:
+    punitive_damages: 0.75
+  US-NY:
+    fraud: 0.75
+  US-TX:
+    fraud: 0.75
+  US-FL:
+    punitive_damages: 0.75
+  US-IL:
+    fraud: 0.75

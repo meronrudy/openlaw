@@ -13,6 +13,7 @@ Complete API reference for the OpenLaw Legal Hypergraph System.
 - [Error Handling](#error-handling)
 - [Examples](#examples)
 
+Implementation note: Native Legal Engine is the default implementation; the adapter is [NativeLegalBridge](core/adapters/native_bridge.py:1). Use [doc_to_graph_cli.py](scripts/ingest/doc_to_graph_cli.py:1) to build GraphML graphs for native ingestion when starting from raw text.
 ## CLI API
 
 ### Command Line Interface

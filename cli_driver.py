@@ -5,6 +5,14 @@ Legal Hypergraph Analysis CLI
 Command-line interface for the provenance-first legal ontology hypergraph system.
 Provides comprehensive employment law analysis with explainable AI reasoning.
 
+Public CLI API Surface (stable)
+- class LegalAnalysisCLI:
+  - analyze_document(file_path: str, output_format: str = "summary", jurisdiction: str = "US",
+                     show_reasoning: bool = False, viz: bool = False) -> Dict[str, Any]
+  - run_demo(domain: str = "employment_law") -> None
+  - batch_analyze(directory: str, output_format: str = "summary", output_file: Optional[str] = None) -> None
+- main() -> None  # argparse entrypoint
+
 Usage:
     python cli_driver.py --help
     python cli_driver.py analyze --file document.txt
@@ -24,6 +32,11 @@ from plugins.employment_law.plugin import EmploymentLawPlugin
 from core.model import Context
 from core.storage import GraphStore
 from core.reasoning import RuleEngine, explain
+# Optional visualization (PNG via Graphviz)
+try:
+    from viz.graphviz_renderer import visualize_analysis
+except Exception:
+    visualize_analysis = None
 
 
 class LegalAnalysisCLI:
@@ -32,8 +45,9 @@ class LegalAnalysisCLI:
     def __init__(self):
         self.plugin = EmploymentLawPlugin()
         
-    def analyze_document(self, file_path: str, output_format: str = "summary", 
-                        jurisdiction: str = "US", show_reasoning: bool = False) -> Dict[str, Any]:
+    def analyze_document(self, file_path: str, output_format: str = "summary",
+                        jurisdiction: str = "US", show_reasoning: bool = False,
+                        viz: bool = False) -> Dict[str, Any]:
         """
         Analyze a single legal document
         
@@ -64,11 +78,24 @@ class LegalAnalysisCLI:
             
             # Display results based on format
             if output_format == "json":
-                return self._format_json_output(analysis, file_path)
+                result = self._format_json_output(analysis, file_path)
             elif output_format == "detailed":
-                return self._format_detailed_output(analysis, file_path, show_reasoning)
+                result = self._format_detailed_output(analysis, file_path, show_reasoning)
             else:  # summary
-                return self._format_summary_output(analysis, file_path)
+                result = self._format_summary_output(analysis, file_path)
+
+            # Optional visualization (PNG saved next to input)
+            if viz:
+                if visualize_analysis is None:
+                    print("⚠️  Visualization requested but graphviz not available. Install python-graphviz and Graphviz binaries.")
+                else:
+                    try:
+                        out_png = visualize_analysis(analysis, source_document_path=file_path)
+                        print(f"🖼️  Visualization saved: {out_png}")
+                    except Exception as ve:
+                        print(f"⚠️  Visualization failed: {ve}")
+
+            return result
                 
         except FileNotFoundError:
             print(f"❌ Error: File not found: {file_path}")
@@ -338,6 +365,8 @@ Examples:
                                help='Legal jurisdiction (default: US)')
     analyze_parser.add_argument('--show-reasoning', action='store_true',
                                help='Show detailed reasoning steps')
+    analyze_parser.add_argument('--viz', action='store_true',
+                               help='Render PNG visualization next to input (requires Graphviz)')
     
     # Demo command
     demo_parser = subparsers.add_parser('demo', help='Run interactive demo')
@@ -367,7 +396,8 @@ Examples:
                 file_path=args.file,
                 output_format=args.format,
                 jurisdiction=args.jurisdiction,
-                show_reasoning=args.show_reasoning
+                show_reasoning=args.show_reasoning,
+                viz=getattr(args, "viz", False)
             )
         elif args.command == 'demo':
             cli.run_demo(domain=args.domain)

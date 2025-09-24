@@ -1,0 +1,27 @@
+# Statutory interpretation preferences (per jurisdiction and claim)
+# Styles supported in engine:
+# - textualism
+# - purposivism
+# - lenity
+#
+# Builder usage:
+#   NativeLegalBridge(..., statutory_prefs_cfg_path="config/statutory_prefs.yaml")
+#   -> build_rules_for_claim_native(..., statutory_prefs=...)
+#
+# Semantics:
+# - default_style provides a global default.
+# - style_overrides can set a default per jurisdiction and per-claim overrides.
+# - The style influences clause-class weights (controlling/persuasive/contrary)
+#   and can be combined with burden aggregators (legal_burden_*). Burden semantics remain authoritative.
+
+default_style: textualism
+
+style_overrides:
+  US-CA:
+    default: purposivism
+    breach_of_contract: textualism
+  US-FED:
+    default: textualism
+  US-NY:
+    default: textualism
+    fraud: purposivism

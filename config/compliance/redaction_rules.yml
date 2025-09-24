@@ -1,0 +1,79 @@
+# PII redaction rules (ingest-blocking). Deterministic patterns first; ML tagger optional.
+# If any unredacted PII is detected post-rules, ingestion must fail (block_on_fail: true).
+
+mode: "ingest_blocking"
+block_on_fail: true
+
+patterns:
+  # Social Security Number (SSN): 123-45-6789 or 123456789
+  - id: "ssn"
+    description: "US Social Security Number"
+    regex: "(?i)\\b(?!000|666|9\\d\\d)(\\d{3})[- ]?(?!00)(\\d{2})[- ]?(?!0000)(\\d{4})\\b"
+    action: "mask"
+    mask: "XXX-XX-XXXX"
+
+  # Date of Birth (DOB): various numeric forms; prefer conservative masking
+  - id: "dob_iso"
+    description: "Date of Birth ISO"
+    regex: "\\b(19|20)\\d{2}-((0[1-9])|(1[0-2]))-(([0-2][0-9])|(3[01]))\\b"
+    action: "mask"
+    mask: "YYYY-MM-DD"
+  - id: "dob_us"
+    description: "Date of Birth US"
+    regex: "\\b((0?[1-9])|(1[0-2]))[\\/\\-]((0?[1-9])|([12][0-9])|(3[01]))[\\/\\-]((19|20)\\d{2})\\b"
+    action: "mask"
+    mask: "MM/DD/YYYY"
+
+  # Email addresses
+  - id: "email"
+    description: "Email address"
+    regex: "(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}"
+    action: "mask"
+    mask: "[redacted_email]"
+
+  # US Phone numbers
+  - id: "phone"
+    description: "US phone number"
+    regex: "\\b(?:\\+1[-.\\s]?)?(?:\\(\\d{3}\\)|\\d{3})[-.\\s]?\\d{3}[-.\\s]?\\d{4}\\b"
+    action: "mask"
+    mask: "[redacted_phone]"
+
+  # Street addresses (heuristic)
+  - id: "street_address"
+    description: "Street address heuristic"
+    regex: "(?i)\\b\\d+\\s+([A-Z][a-z]+\\s?){1,4}(Street|St\\.|Road|Rd\\.|Avenue|Ave\\.|Boulevard|Blvd\\.|Lane|Ln\\.|Drive|Dr\\.|Court|Ct\\.|Way)\\b"
+    action: "mask"
+    mask: "[redacted_address]"
+
+  # ZIP codes (5 or 9 digits)
+  - id: "zip"
+    description: "US ZIP code"
+    regex: "\\b\\d{5}(?:-\\d{4})?\\b"
+    action: "mask"
+    mask: "[redacted_zip]"
+
+  # State DL numbers (very state-specific; add per-tenant where available)
+  - id: "dl_generic"
+    description: "Generic driver license pattern (heuristic)"
+    regex: "\\b[A-Z]{1,2}\\d{6,8}\\b"
+    action: "mask"
+    mask: "[redacted_dl]"
+
+ml_tagger:
+  enabled: false
+  threshold: 0.8
+  labels:
+    - PERSON
+    - GPE
+    - LOC
+    - ORG
+    - NORP
+
+audit:
+  log_mode: "append_only_hash_chain"
+  include_sample_before_after: true
+  sample_char_limit: 64
+
+retention:
+  raw_days: 30
+  derived_days: 365

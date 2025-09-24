@@ -43,6 +43,9 @@ class GraphStore:
         # Provenance indexes for explainability
         self._node_by_source = SqliteDict(path, tablename="node_source_idx", autocommit=True)
         
+        # Statement index for fast premise lookup by statement string
+        self._node_by_statement = SqliteDict(path, tablename="node_statement_idx", autocommit=True)
+        
     def add_node(self, node: Node) -> None:
         """
         Add a node to the graph store with automatic indexing
@@ -72,6 +75,16 @@ class GraphStore:
                     source_list.append(node.id)
                     self._node_by_source[source_type] = source_list
                     
+        # Update statement index for quick lookup by fact statement
+        stmt = node.data.get("statement")
+        if stmt:
+            if stmt not in self._node_by_statement:
+                self._node_by_statement[stmt] = []
+            stmt_list = self._node_by_statement[stmt]
+            if node.id not in stmt_list:
+                stmt_list.append(node.id)
+                self._node_by_statement[stmt] = stmt_list
+
     def get_node(self, node_id: str) -> Optional[Node]:
         """
         Retrieve a node by ID
@@ -239,6 +252,26 @@ class GraphStore:
             
         node_ids = self._node_by_source[source_type]
         nodes = []
+        for node_id in node_ids:
+            node = self.get_node(node_id)
+            if node:
+                nodes.append(node)
+        return nodes
+
+    def get_nodes_by_statement(self, statement: str) -> List[Node]:
+        """
+        Get all nodes whose data.statement equals the provided statement value.
+
+        Args:
+            statement: Statement string to look up
+
+        Returns:
+            List of nodes that carry this statement in their data
+        """
+        if statement not in self._node_by_statement:
+            return []
+        node_ids = self._node_by_statement[statement]
+        nodes: List[Node] = []
         for node_id in node_ids:
             node = self.get_node(node_id)
             if node:

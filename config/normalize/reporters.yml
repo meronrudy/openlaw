@@ -1,0 +1,147 @@
+# Reporter normalization map (v1 U.S. coverage)
+# Purpose: canonicalize reporter strings and provide regex patterns for extraction.
+# This file supports deterministic citation parsing and mapping.
+
+canonical:
+  US:
+    names: ["U.S.", "US", "United States Reports"]
+    patterns:
+      - "(?i)\\bU\\.?S\\.?\\b"
+  F:
+    names: ["F.", "Federal Reporter"]
+    patterns:
+      - "(?i)\\bF\\.?\\b"
+  F2d:
+    names: ["F.2d", "Federal Reporter, Second Series"]
+    patterns:
+      - "(?i)\\bF\\.?\\s?2d\\b"
+  F3d:
+    names: ["F.3d", "Federal Reporter, Third Series"]
+    patterns:
+      - "(?i)\\bF\\.?\\s?3d\\b"
+  FSupp:
+    names: ["F. Supp.", "Federal Supplement"]
+    patterns:
+      - "(?i)\\bF\\.?\\s?Supp\\.?\\b"
+  FSupp2d:
+    names: ["F. Supp. 2d", "Federal Supplement, Second Series"]
+    patterns:
+      - "(?i)\\bF\\.?\\s?Supp\\.?\\s?2d\\b"
+  FSupp3d:
+    names: ["F. Supp. 3d", "Federal Supplement, Third Series"]
+    patterns:
+      - "(?i)\\bF\\.?\\s?Supp\\.?\\s?3d\\b"
+  Sct:
+    names: ["S. Ct.", "Supreme Court Reporter"]
+    patterns:
+      - "(?i)\\bS\\.?\\s?Ct\\.?\\b"
+  Led:
+    names: ["L. Ed.", "United States Supreme Court Reports, Lawyers' Edition"]
+    patterns:
+      - "(?i)\\bL\\.?\\s?Ed\\.?\\b"
+  NE:
+    names: ["N.E.", "North Eastern Reporter"]
+    patterns:
+      - "(?i)\\bN\\.?\\s?E\\.?\\b"
+  NE2d:
+    names: ["N.E.2d", "North Eastern Reporter, Second Series"]
+    patterns:
+      - "(?i)\\bN\\.?\\s?E\\.?\\s?2d\\b"
+  NE3d:
+    names: ["N.E.3d", "North Eastern Reporter, Third Series"]
+    patterns:
+      - "(?i)\\bN\\.?\\s?E\\.?\\s?3d\\b"
+  NW:
+    names: ["N.W.", "North Western Reporter"]
+    patterns:
+      - "(?i)\\bN\\.?\\s?W\\.?\\b"
+  NW2d:
+    names: ["N.W.2d", "North Western Reporter, Second Series"]
+    patterns:
+      - "(?i)\\bN\\.?\\s?W\\.?\\s?2d\\b"
+  NW3d:
+    names: ["N.W.3d", "North Western Reporter, Third Series"]
+    patterns:
+      - "(?i)\\bN\\.?\\s?W\\.?\\s?3d\\b"
+  P:
+    names: ["P.", "Pacific Reporter"]
+    patterns:
+      - "(?i)\\bP\\.?\\b"
+  P2d:
+    names: ["P.2d", "Pacific Reporter, Second Series"]
+    patterns:
+      - "(?i)\\bP\\.?\\s?2d\\b"
+  P3d:
+    names: ["P.3d", "Pacific Reporter, Third Series"]
+    patterns:
+      - "(?i)\\bP\\.?\\s?3d\\b"
+  So:
+    names: ["So.", "Southern Reporter"]
+    patterns:
+      - "(?i)\\bSo\\.?\\b"
+  So2d:
+    names: ["So. 2d", "Southern Reporter, Second Series"]
+    patterns:
+      - "(?i)\\bSo\\.?\\s?2d\\b"
+  So3d:
+    names: ["So. 3d", "Southern Reporter, Third Series"]
+    patterns:
+      - "(?i)\\bSo\\.?\\s?3d\\b"
+  SE:
+    names: ["S.E.", "South Eastern Reporter"]
+    patterns:
+      - "(?i)\\bS\\.?\\s?E\\.?\\b"
+  SE2d:
+    names: ["S.E.2d", "South Eastern Reporter, Second Series"]
+    patterns:
+      - "(?i)\\bS\\.?\\s?E\\.?\\s?2d\\b"
+  SW:
+    names: ["S.W.", "South Western Reporter"]
+    patterns:
+      - "(?i)\\bS\\.?\\s?W\\.?\\b"
+  SW2d:
+    names: ["S.W.2d", "South Western Reporter, Second Series"]
+    patterns:
+      - "(?i)\\bS\\.?\\s?W\\.?\\s?2d\\b"
+  SW3d:
+    names: ["S.W.3d", "South Western Reporter, Third Series"]
+    patterns:
+      - "(?i)\\bS\\.?\\s?W\\.?\\s?3d\\b"
+  A:
+    names: ["A.", "Atlantic Reporter"]
+    patterns:
+      - "(?i)\\bA\\.?\\b"
+  A2d:
+    names: ["A.2d", "Atlantic Reporter, Second Series"]
+    patterns:
+      - "(?i)\\bA\\.?\\s?2d\\b"
+  A3d:
+    names: ["A.3d", "Atlantic Reporter, Third Series"]
+    patterns:
+      - "(?i)\\bA\\.?\\s?3d\\b"
+  Cal:
+    names: ["Cal.", "California Reports"]
+    patterns:
+      - "(?i)\\bCal\\.?\\b"
+  CalApp:
+    names: ["Cal. App.", "California Appellate Reports"]
+    patterns:
+      - "(?i)\\bCal\\.?\\s?App\\.?\\b"
+  NY:
+    names: ["N.Y.", "New York Reports"]
+    patterns:
+      - "(?i)\\bN\\.?\\s?Y\\.?\\b"
+  NYS:
+    names: ["N.Y.S.", "New York Supplement"]
+    patterns:
+      - "(?i)\\bN\\.?\\s?Y\\.?\\s?S\\.?\\b"
+
+parallel_resolution:
+  # If multiple parallel citations exist, prefer canonical order
+  order: ["US", "Sct", "Led", "F3d", "F2d", "F", "FSupp3d", "FSupp2d", "FSupp", "NE3d", "NE2d", "NE", "NW3d", "NW2d", "NW", "P3d", "P2d", "P", "So3d", "So2d", "So", "SE2d", "SE", "SW3d", "SW2d", "SW", "A3d", "A2d", "A", "Cal", "CalApp", "NY", "NYS"]
+
+normalization:
+  strip_periods: true
+  collapse_spaces: true
+  uppercase_series: true
+  vendor_cites_are_hints_only: true

@@ -1,0 +1,68 @@
+# Court normalization and hierarchy (v1 U.S. coverage)
+# - Provides canonical IDs and simple weights for controlling/persuasive/contrary.
+# - Higher-court controlling relations are derived in the pipeline into 'controlling_relation' edges.
+# - This file also supplies default clause weights consumed by default_clause_weights().
+
+metadata:
+  version: 1
+  scope: ["US-FED","US-ALL-STATES"]
+  include_dc: true
+
+weights:
+  controlling: 0.6
+  persuasive: 0.3
+  contrary: 0.1
+
+federal:
+  SCOTUS:
+    id: "US-SCOTUS"
+    level: "Supreme"
+    precedential: true
+  Circuits:
+    - { id: "US-1st", level: "Circuit", precedential: true }
+    - { id: "US-2nd", level: "Circuit", precedential: true }
+    - { id: "US-3rd", level: "Circuit", precedential: true }
+    - { id: "US-4th", level: "Circuit", precedential: true }
+    - { id: "US-5th", level: "Circuit", precedential: true }
+    - { id: "US-6th", level: "Circuit", precedential: true }
+    - { id: "US-7th", level: "Circuit", precedential: true }
+    - { id: "US-8th", level: "Circuit", precedential: true }
+    - { id: "US-9th", level: "Circuit", precedential: true }
+    - { id: "US-10th", level: "Circuit", precedential: true }
+    - { id: "US-11th", level: "Circuit", precedential: true }
+    - { id: "US-DC", level: "Circuit", precedential: true }
+    - { id: "US-Fed", level: "Circuit", precedential: true }
+  Districts:
+    # District courts precedential status varies by circuit rules; normalize as precedential within case unless marked unpublished
+    template:
+      level: "District"
+      precedential: true
+
+states:
+  # Example subset; full list implied ‘all states + DC’
+  - code: "US-CA"
+    supreme: { id: "CA-SC", level: "Supreme", precedential: true }
+    intermediate: [{ id: "CA-1DCA", level: "Intermediate", precedential: true }]
+    trial: { template: { level: "Trial", precedential: true } }
+  - code: "US-NY"
+    supreme: { id: "NY-COA", level: "Supreme", precedential: true }
+    intermediate: [{ id: "NY-AD", level: "Intermediate", precedential: true }]
+    trial: { template: { level: "Trial", precedential: true } }
+  - code: "US-TX"
+    supreme: { id: "TX-SC", level: "Supreme", precedential: true }
+    intermediate: [{ id: "TX-COA", level: "Intermediate", precedential: true }]
+    trial: { template: { level: "Trial", precedential: true } }
+
+hierarchy_rules:
+  # High-level guidance for deriving controlling relations in the pipeline:
+  - description: "SCOTUS controls all federal and state courts on federal questions"
+    from: ["US-SCOTUS"]
+    to: ["ALL"]
+  - description: "Circuit courts control district courts within their circuit"
+    from_circuit_to_district: true
+  - description: "State supreme courts control lower state courts on state law"
+    state_supreme_controls_state_lower: true
+
+publication_defaults:
+  published_is_precedential: true
+  unpublished_downweight: true

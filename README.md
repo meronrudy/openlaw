@@ -1,442 +1,184 @@
-# OpenLaw Legal Hypergraph System
+# OpenLaw Legal Reasoning (Native Engine — Default)
 
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+This repository provides a production-ready, legal reasoning stack centered on a deterministic Native Engine. It includes a native adapter/bridge for legal workloads, a jurisdiction-aware rule builder, authority multipliers, a document-to-graph ingestion CLI, GraphML fixtures, configuration bundles, CI with coverage gating, and comprehensive docs.
 
-A **provenance-first legal ontology hypergraph system** that provides explainable AI for legal document analysis. Built with a modular plugin architecture, it currently supports comprehensive employment law analysis with plans for expansion to other legal domains.
+What’s new
+- Native-only default architecture:
+  - Deterministic fixed-point engine with threshold semantics and aggregation registry
+  - Privacy-aware interpretation exports with redaction
+- Legal adapter and builder:
+  - [NativeLegalBridge.__init__()](core/adapters/native_bridge.py:55) with strict config validation and privacy defaults
+  - [build_rules_for_claim()](core/adapters/native_bridge.py:450) wires burden-of-proof, statutory styles, and authority multipliers
+  - Canonical rule builder: [build_rules_for_claim_native()](core/rules_native/native_legal_builder.py:373)
+- Authority multipliers (config-driven):
+  - [_compute_authority_multipliers()](core/adapters/native_bridge.py:325) combines treatment modifiers, recency decay, jurisdiction alignment, and court-level weights
+- Ingestion pipeline:
+  - Document → GraphML via [doc_to_graph_auto()](nlp/doc_to_graph.py:180) or [doc_to_graph()](nlp/doc_to_graph.py:96)
+  - CLI tool: [scripts/ingest/doc_to_graph_cli.py](scripts/ingest/doc_to_graph_cli.py:1)
+- CI and quality gates:
+  - Native unit/integration CI with coverage ≥ 80%: [.github/workflows/native-ci.yml](.github/workflows/native-ci.yml:1)
+- Legal data compliance:
+  - Privacy defaults and redaction profiles in exports, data handling guidance in [docs/LEGAL_DATA_COMPLIANCE.md](docs/LEGAL_DATA_COMPLIANCE.md)
 
-## 🚀 Quick Start
+Core implementation files
+- Native adapter (default entrypoint): [core/adapters/native_bridge.py](core/adapters/native_bridge.py:1)
+- Native legal rules builder (canonical): [core/rules_native/native_legal_builder.py](core/rules_native/native_legal_builder.py:1)
+- Engine facade and engine:
+  - [NativeLegalFacade.run_reasoning()](core/native/facade.py:75)
+  - [FixedPointEngine.run()](core/native/engine.py:61)
+- Aggregators and legal operators: [ANNOTATION_REGISTRY](core/native/annotate.py:285)
+- Interpretation export (privacy-aware): [Interpretation.export()](core/native/interpretation.py:127)
+- Graph utilities (GraphML + label extraction): [extract_specific_labels()](core/native/graph.py:101)
+- NLP/doc ingestion:
+  - [doc_to_graph_auto()](nlp/doc_to_graph.py:180), [doc_to_graph()](nlp/doc_to_graph.py:96)
+  - CLI: [doc_to_graph_cli.py](scripts/ingest/doc_to_graph_cli.py:1)
 
-### One-Command Setup
-
-```bash
-# Clone and setup (if not already done)
-git clone <repository-url>
-cd openlaw
-
-# Automated setup with virtual environment
-./setup.sh
-
-# Activate environment and start using
-source openlaw-env/bin/activate
-python3 cli_driver.py demo --domain employment_law
-```
-
-### Quick Analysis Example
-
-```bash
-# Analyze a legal document
-python3 cli_driver.py analyze --file document.txt --format detailed
-
-# Interactive demo
-python3 cli_driver.py demo --domain employment_law
-
-# Batch processing
-python3 cli_driver.py batch --directory documents/ --output results.json
-```
-
-## 📋 Table of Contents
-
-- [Features](#-features)
-- [System Architecture](#-system-architecture)
-- [Installation](#-installation)
-- [Usage Examples](#-usage-examples)
-- [Plugin Development](#-plugin-development)
-- [API Reference](#-api-reference)
-- [Configuration](#-configuration)
-- [Testing](#-testing)
-- [Contributing](#-contributing)
-- [Documentation](#-documentation)
-
-## ✨ Features
-
-### Core Capabilities
-
-- **🧠 Provenance-First Reasoning**: Complete audit trails for all legal conclusions
-- **📊 Hypergraph Data Model**: Complex many-to-many legal relationships
-- **⚖️ Rule-Based Legal Engine**: Forward-chaining inference with legal authorities
-- **🔍 Advanced NER**: Domain-specific named entity recognition
-- **📚 Citation Analysis**: Legal citation extraction and normalization
-- **🔌 Plugin Architecture**: Modular domain-specific extensions
-
-### Employment Law Plugin (Production Ready)
-
-- **ADA Analysis**: Americans with Disabilities Act compliance
-- **FLSA Analysis**: Fair Labor Standards Act violations  
-- **At-Will Employment**: Wrongful termination exceptions
-- **Workers' Compensation**: Workplace injury claim analysis
-
-### Currently Available
-
-| Domain | Status | Features |
-|--------|--------|----------|
-| Employment Law | ✅ Production | NER, Rules, Analysis, CLI |
-| Caselaw Analysis | 🔄 Development | Advanced plugin in development |
-
-## 🏗️ System Architecture
-
-```mermaid
-graph TB
-    CLI[CLI Interface] --> Core[Core System]
-    Core --> Storage[Hypergraph Storage]
-    Core --> Reasoning[Rule Engine]
-    Core --> Plugins[Plugin System]
-    
-    Plugins --> EmpLaw[Employment Law Plugin]
-    Plugins --> Future[Future Plugins...]
-    
-    EmpLaw --> NER[Employment NER]
-    EmpLaw --> Rules[Legal Rules]
-    EmpLaw --> Analysis[Document Analysis]
-    
-    Storage --> SQLite[SQLite Backend]
-    Storage --> Memory[In-Memory Cache]
-```
-
-### Core Components
-
-- **Hypergraph Store**: Provenance-tracking graph database
-- **Rule Engine**: Legal reasoning with forward-chaining
-- **Plugin SDK**: Extensible domain-specific analysis
-- **CLI Interface**: Command-line analysis tools
-
-## 🛠️ Installation
-
-### System Requirements
-
-- **Python**: 3.9 or higher
-- **Memory**: 4GB+ RAM (8GB recommended)
-- **Storage**: 2GB available disk space
-- **OS**: Linux, macOS, Windows
-
-### Automated Installation
+1. Installation (Python 3.10 recommended)
 
 ```bash
-# Run setup script (recommended)
-./setup.sh
-```
+python -m venv .venv
+source .venv/bin/activate
 
-### Manual Installation
-
-```bash
-# Create virtual environment
-python3 -m venv openlaw-env
-source openlaw-env/bin/activate  # Linux/Mac
-# openlaw-env\Scripts\activate   # Windows
-
-# Install dependencies
-pip install --upgrade pip setuptools wheel
+# Core deps for native engine path
 pip install -r requirements.txt
-
-# Verify installation
-python3 -c "import plugins.employment_law.plugin; print('✅ System ready')"
 ```
 
-### Development Installation
+Optional (dev)
+- Parity tools and heavy extras are not required; the project operates native-first.
+- Add pytest-cov locally if you want coverage reports that match CI:
+  - pip install pytest-cov
 
-```bash
-# Install with development dependencies
-pip install -e ".[dev,test]"
+2. Configuration (Native)
 
-# Run tests
-pytest tests/ -v
+Primary config files:
+- Courts and default clause weights with optional hierarchy/overrides:
+  - [config/courts.yaml](config/courts.yaml:1)
+- Authority multipliers (recency, jurisdiction alignment, court levels, treatment modifiers):
+  - [config/precedent_weights.yaml](config/precedent_weights.yaml:1)
+- Statutory interpretation preferences (textualism, purposivism, lenity):
+  - [config/statutory_prefs.yaml](config/statutory_prefs.yaml:1)
+- Redaction rules for export profiles:
+  - [config/compliance/redaction_rules.yml](config/compliance/redaction_rules.yml:1)
 
-# Code formatting
-black .
-isort .
-```
-
-## 💡 Usage Examples
-
-### 1. Document Analysis
-
-```bash
-# Basic analysis
-python3 cli_driver.py analyze --file employment_case.txt
-
-# Detailed analysis with reasoning steps
-python3 cli_driver.py analyze --file employment_case.txt --format detailed --show-reasoning
-
-# JSON output for integration
-python3 cli_driver.py analyze --file employment_case.txt --format json
-```
-
-**Sample Input Document:**
-```text
-John Smith has been employed as a software engineer for 3 years. He recently 
-developed a visual impairment that affects his ability to read standard computer 
-screens. John requested a larger monitor and screen reader software as reasonable 
-accommodations. The company has 150 employees and annual revenue of $50 million. 
-John can perform all essential job functions with these accommodations.
-```
-
-**Sample Output:**
-```
-🔍 Analyzing document: employment_case.txt
-📄 Document length: 392 characters
-⚖️  Jurisdiction: US
-
-📊 ANALYSIS SUMMARY
-============================================================
-🏷️  Entities Extracted: 4 total
-   • DISABILITY: 1
-   • REASONABLE_ACCOMMODATION: 1  
-   • ADA_REQUEST: 2
-
-📚 Legal Citations: 0
-
-⚖️  Legal Conclusions: 1
-   • ADA_VIOLATION: Employer may be required to provide reasonable accommodation
-     Legal Basis: 42 U.S.C. § 12112(b)(5)(A)
-     Confidence: 85.0%
-```
-
-### 2. Interactive Demo
-
-```bash
-python3 cli_driver.py demo --domain employment_law
-```
-
-The demo provides:
-- Overview of supported legal areas
-- Rule summary (ADA, FLSA, At-Will, Workers' Comp)
-- Interactive document selection
-- Live analysis examples
-
-### 3. Batch Processing
-
-```bash
-# Process multiple documents
-python3 cli_driver.py batch --directory legal_documents/ --output analysis_results.json
-
-# Example output structure
-{
-  "summary": {
-    "total_documents": 10,
-    "successful_analyses": 9,
-    "failed_analyses": 1
-  },
-  "results": [...]
-}
-```
-
-### 4. Programmatic Usage
+Bridge constructor (strict mode)
+- [NativeLegalBridge.__init__()](core/adapters/native_bridge.py:55) validates all configs and can fail-fast:
 
 ```python
-from plugins.employment_law.plugin import EmploymentLawPlugin
-from core.model import Context
+from core.adapters.native_bridge import NativeLegalBridge
 
-# Initialize plugin
-plugin = EmploymentLawPlugin()
-
-# Set up legal context  
-context = Context(jurisdiction="US", law_type="employment")
-
-# Analyze document
-document_text = "Employee worked 50 hours without overtime pay..."
-results = plugin.analyze_document(document_text, context)
-
-# Access results
-entities = results['entities']
-conclusions = results['conclusions']
-reasoning_chain = results['derived_facts']
+bridge = NativeLegalBridge(
+    courts_cfg_path="config/courts.yaml",
+    precedent_weights_cfg_path="config/precedent_weights.yaml",
+    statutory_prefs_cfg_path="config/statutory_prefs.yaml",
+    redaction_cfg_path="config/compliance/redaction_rules.yml",
+    privacy_defaults=True,
+    strict_mode=True,  # raise on invalid config
+)
 ```
 
-## 🔌 Plugin Development
+3. Quick start (GraphML → reasoning → export)
 
-### Creating a New Plugin
+Using example fixtures in examples/graphs:
+- friends_graph.graphml
+- group_chat_graph.graphml
 
 ```python
-# plugins/my_domain/plugin.py
-from core.model import Context
-from sdk.plugin import OntologyProvider, RuleProvider
+from core.adapters.native_bridge import NativeLegalBridge
 
-class MyDomainPlugin:
-    def __init__(self):
-        self.name = "My Legal Domain"
-        self.version = "1.0.0"
-        
-    def analyze_document(self, text: str, context: Context):
-        # Implement domain-specific analysis
-        return {
-            "entities": [],
-            "conclusions": [],
-            "derived_facts": []
-        }
+b = NativeLegalBridge(
+    courts_cfg_path="config/courts.yaml",
+    precedent_weights_cfg_path="config/precedent_weights.yaml",
+    statutory_prefs_cfg_path="config/statutory_prefs.yaml",
+    redaction_cfg_path="config/compliance/redaction_rules.yml",
+    privacy_defaults=True,
+)
+
+g = b.load_graphml("examples/graphs/friends_graph.graphml", reverse=False)
+facts_node, facts_edge, _, _ = b.parse_graph_attributes(static_facts=True)
+
+rules = b.build_rules_for_claim(
+    claim="breach_of_contract",
+    jurisdiction="US-CA",
+    use_conservative=False,
+)
+
+interp = b.run_reasoning(
+    graph=g, facts_node=facts_node, facts_edge=facts_edge, rules=rules, tmax=1
+)
+
+# Privacy-aware export (facts only by default profile)
+out = b.export_interpretation(interp, profile="default_profile")
+print(out["facts"])
 ```
 
-### Plugin Structure
+4. Document ingestion CLI (doc → GraphML)
 
-```
-plugins/
-└── my_domain/
-    ├── __init__.py
-    ├── plugin.py          # Main plugin class
-    ├── ner.py            # Named entity recognition
-    ├── rules.py          # Legal rules
-    └── tests/            # Plugin tests
-```
-
-### SDK Interfaces
-
-- **`OntologyProvider`**: Define domain entities and relationships
-- **`RuleProvider`**: Legal rules and reasoning patterns  
-- **`LegalExplainer`**: Generate explanations for conclusions
-
-See [`PLUGIN_DEVELOPMENT_GUIDE.md`](docs/PLUGIN_DEVELOPMENT_GUIDE.md) for detailed instructions.
-
-## 📡 API Reference
-
-### CLI Commands
-
-| Command | Description | Options |
-|---------|-------------|---------|
-| `analyze` | Analyze single document | `--file`, `--format`, `--jurisdiction` |
-| `demo` | Interactive demonstration | `--domain` |
-| `batch` | Process multiple documents | `--directory`, `--output` |
-
-### Analysis Formats
-
-- **`summary`**: Brief overview of findings
-- **`detailed`**: Full analysis with entity details
-- **`json`**: Machine-readable structured output
-
-### Python API
-
-```python
-# Core imports
-from core.model import Context, Node, Hyperedge
-from core.storage import GraphStore
-from core.reasoning import RuleEngine
-
-# Plugin imports
-from plugins.employment_law.plugin import EmploymentLawPlugin
-```
-
-See [`API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) for complete API reference.
-
-## ⚙️ Configuration
-
-### Environment Variables
+Convert raw text to a GraphML legal graph using NLP (auto) or regex-only (no NLP):
 
 ```bash
-# Optional configuration
-export OPENLAW_ENV=development          # Environment mode
-export OPENLAW_LOG_LEVEL=INFO         # Logging level
-export OPENLAW_STORAGE_PATH=./data     # Storage directory
+# Auto mode (NER + citations if available)
+python -m scripts.ingest.doc_to_graph_cli ./my_case.txt -o examples/graphs/generated_case.graphml --mode auto --jurisdiction US-CA --default-year 2020
+
+# Regex-only mode (always available)
+python -m scripts.ingest.doc_to_graph_cli ./my_case.txt -o examples/graphs/generated_case.graphml --mode regex
 ```
 
-### Configuration Files
+Key ingestion functions:
+- [doc_to_graph_auto()](nlp/doc_to_graph.py:180) and [doc_to_graph()](nlp/doc_to_graph.py:96)
 
-The system uses reasonable defaults and requires minimal configuration:
+5. Authority multipliers (how it works)
 
-- **Storage**: SQLite in-memory (development) or file-based (production)
-- **Logging**: Console output with configurable levels
-- **Plugin Loading**: Automatic discovery in `plugins/` directory
+At build-time, if you do not explicitly pass clause weights, the bridge computes multipliers:
+- [_compute_authority_multipliers()](core/adapters/native_bridge.py:325):
+  - Treatment modifier: e.g., followed/criticized/overruled weights
+  - Recency decay: exponential half-life with a floor
+  - Jurisdiction alignment: exact/ancestor/sibling/foreign
+  - Court level weights: e.g., US_SCOTUS=1.0, STATE_TRIAL ~0.78
+- Applied to the top-level support rule weights in:
+  - [build_rules_for_claim()](core/adapters/native_bridge.py:450)
 
-See [`CONFIGURATION_REFERENCE.md`](docs/CONFIGURATION_REFERENCE.md) for all settings.
+You can still pass explicit weights to override.
 
-## 🧪 Testing
+6. Aggregators and legal styles
 
-### Run Test Suite
+Aggregators (registered in [ANNOTATION_REGISTRY](core/native/annotate.py:285)):
+- Burden-of-proof: [legal_burden_civil_051()](core/native/annotate.py:175), [legal_burden_clear_075()](core/native/annotate.py:186), [legal_burden_criminal_090()](core/native/annotate.py:197)
+- Conservative: [legal_conservative_min()](core/native/annotate.py:208)
+- Precedent-weighted: [precedent_weighted()](core/native/annotate.py:226)
 
-```bash
-# All tests
-pytest tests/ -v
+Interpretation styles (weight tuning):
+- textualism, purposivism, lenity via [statutory_prefs.yaml](config/statutory_prefs.yaml:1)
 
-# Specific test categories  
-pytest tests/ -m unit           # Unit tests only
-pytest tests/ -m integration    # Integration tests only
-pytest tests/ -m e2e           # End-to-end tests only
+7. Privacy and compliance
 
-# With coverage
-pytest tests/ --cov=core --cov=plugins --cov-report=html
-```
+- Default exports are facts-only; supports/trace require audit_profile.
+  - [Interpretation.export()](core/native/interpretation.py:127)
+  - [export_interpretation()](core/adapters/native_bridge.py:536)
+- Redaction profiles:
+  - [config/compliance/redaction_rules.yml](config/compliance/redaction_rules.yml:1)
+- Guidance and controls:
+  - [docs/LEGAL_DATA_COMPLIANCE.md](docs/LEGAL_DATA_COMPLIANCE.md)
 
-### Test Categories
+8. CI (coverage gating, native-first)
 
-- **Unit Tests**: Individual component testing
-- **Integration Tests**: Plugin integration testing  
-- **End-to-End Tests**: Complete workflow testing
-- **Performance Tests**: Load and scalability testing
+- Native unit/integration CI with coverage ≥ 80%:
+  - [.github/workflows/native-ci.yml](.github/workflows/native-ci.yml:1)
 
-## 🤝 Contributing
 
-### Development Workflow
+10. Examples and benchmarks
 
-1. **Fork** the repository
-2. **Create** feature branch: `git checkout -b feature/my-feature`
-3. **Implement** changes with tests
-4. **Run** test suite: `pytest tests/ -v`
-5. **Format** code: `black . && isort .`
-6. **Submit** pull request
+- End-to-end example: [scripts/examples/mini_end_to_end.py](scripts/examples/mini_end_to_end.py:1)
+- Benchmarks:
+  - [scripts/bench/native_bench.py](scripts/bench/native_bench.py:1)
+  - [scripts/benchmarks/perf_benchmark.py](scripts/benchmarks/perf_benchmark.py:1)
 
-### Code Standards
+11. Troubleshooting and docs
 
-- **Python**: 3.9+ with type hints
-- **Formatting**: Black + isort
-- **Testing**: pytest with 90%+ coverage
-- **Documentation**: Comprehensive docstrings
+- Troubleshooting: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md:1)
+- Configuration reference (additions for native engine and redaction): [docs/CONFIGURATION_REFERENCE.md](docs/CONFIGURATION_REFERENCE.md:1)
+- API guides and examples:
+  - [docs/OPENLAW_API_GUIDE.md](docs/OPENLAW_API_GUIDE.md:1)
+  - [docs/OPENLAW_API_EXAMPLES.md](docs/OPENLAW_API_EXAMPLES.md:1)
 
-## 📚 Documentation
-
-### Available Guides
-
-- **[Installation Guide](DEPLOYMENT_GUIDE_CORE.md)**: System setup and deployment
-- **[Plugin Development Guide](docs/PLUGIN_DEVELOPMENT_GUIDE.md)**: Creating new plugins
-- **[API Documentation](docs/API_DOCUMENTATION.md)**: Complete API reference
-- **[Configuration Reference](docs/CONFIGURATION_REFERENCE.md)**: All settings
-- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)**: Common issues and solutions
-
-### Architecture Documentation
-
-- **[System Architecture](docs/SYSTEM_ARCHITECTURE.md)**: Core system design
-- **[Hypergraph Model](docs/HYPERGRAPH_MODEL.md)**: Data modeling approach
-- **[Provenance System](docs/PROVENANCE_SYSTEM.md)**: Audit trail implementation
-
-## 📊 Performance
-
-### Benchmarks
-
-- **Document Analysis**: ~1-2 seconds for 10KB documents
-- **Memory Usage**: ~100MB base + ~1MB per 10KB document
-- **Storage**: ~1KB metadata per analyzed document
-- **Concurrent Processing**: 4-8 documents simultaneously
-
-### Scalability
-
-- **Single Documents**: Up to 1MB text files
-- **Batch Processing**: 1000+ documents per batch
-- **Storage**: SQLite suitable for <10k documents
-- **Production**: PostgreSQL recommended for larger deployments
-
-## 🔍 Current Status
-
-### Production Ready ✅
-
-- **Employment Law Plugin**: Complete analysis capabilities
-- **Core System**: Stable hypergraph and reasoning engine
-- **CLI Interface**: Full-featured command line tools
-- **Documentation**: Comprehensive guides and examples
-
-### In Development 🔄
-
-- **Caselaw Plugin**: Harvard Law 37M+ document corpus integration
-- **Web Interface**: Browser-based analysis tools
-- **API Server**: REST API for service integration
-- **Advanced Plugins**: Contract analysis, regulatory compliance
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **Harvard Law School**: Caselaw Access Project (CAP) dataset
-- **HuggingFace**: Transformers and datasets infrastructure  
-- **Legal AI Community**: Open source legal technology contributions
-
----
-
-**Get Started**: [`./setup.sh`](setup.sh) | **Documentation**: [`docs/`](docs/) | **Issues**: [GitHub Issues](../../issues)
+License
+- OpenLaw code under repository license terms.

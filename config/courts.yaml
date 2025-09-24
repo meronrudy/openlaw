@@ -1,0 +1,28 @@
+# Courts configuration: clause-class weights and jurisdiction hierarchy
+#
+# Consumed by:
+# - weights_from_courts_cfg() via [core/adapters/native_bridge.py](core/adapters/native_bridge.py:192)
+# - default_clause_weights() via [core/rules_native/native_legal_builder.py](core/rules_native/native_legal_builder.py:89)
+#
+# Notes:
+# - weights are normalized at runtime to sum to 1.0
+# - hierarchy is a DAG listing parent jurisdictions (left-to-right = higher priority parents if needed)
+# - conflict_priority defines default precedence order for conflicting sources; exceptions can override per label/predicate
+
+weights:
+  controlling: 0.6
+  persuasive: 0.3
+  contrary: 0.1
+
+hierarchy:
+  US-FED: []
+  US-CA: [US-FED]
+  US-NY: [US-FED]
+
+# Priority order used when resolving conflicts among authorities from different scopes.
+# This is a policy surface; rule-selection can honor this when jurisdiction-aware selection is implemented.
+conflict_priority:
+  default: ["local", "parent", "federal"]
+  exceptions:
+    - label: "criminal_rule"
+      priority: ["federal", "local", "parent"]

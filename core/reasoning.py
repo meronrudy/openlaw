@@ -3,18 +3,43 @@ Forward-Chaining Rule Engine and Explanation Generation
 
 Implements legal reasoning over hypergraphs with provenance tracking,
 conflict resolution, and explanation generation for transparent legal AI.
+
+Public API Surface (stable)
+- ReasoningConfig(aggregator: str = "min", alpha: float = 0.8)
+- RuleEngine(graph: GraphStore, context: Optional[Context] = None, config: Optional[ReasoningConfig] = None)
+  - forward_chain() -> List[Node]  # Executes agenda-based forward chaining and returns newly derived facts
+- explain(graph: GraphStore, conclusion_id: str) -> Dict[str, Any]  # Produces an explanation object
+
+Compatibility/Contract
+- Node.prov.confidence and Hyperedge.prov.confidence are used in aggregation.
+- Hyperedge.qualifiers may include: rule_id, authority, priority, rule_text.
+- The engine is deterministic under identical graph ordering and inputs.
 """
 
 from __future__ import annotations
 from typing import List, Dict, Any, Optional, Set, Tuple
 from datetime import datetime
 import copy
+from collections import deque
 
 from .model import Node, Hyperedge, Provenance, Context, mk_node
 from .storage import GraphStore
 from .rules import LegalRule
 
 
+class ReasoningConfig:
+    """
+    Configuration for the RuleEngine's inference behavior.
+
+    Attributes:
+        aggregator: Confidence aggregation strategy. Options:
+            - "min": conservative minimum of inputs (legacy behavior)
+            - "wgm": weighted geometric mean of premise confidences mixed with rule confidence
+        alpha: Mixing factor for "wgm" aggregator (0..1). Higher = emphasize premise support.
+    """
+    def __init__(self, aggregator: str = "min", alpha: float = 0.8):
+        self.aggregator = aggregator
+        self.alpha = alpha
 class RuleEngine:
     """
     Forward-chaining rule engine for legal reasoning over hypergraphs
@@ -23,7 +48,7 @@ class RuleEngine:
     context-sensitive rule application, and cycle detection.
     """
     
-    def __init__(self, graph: GraphStore, context: Optional[Context] = None):
+    def __init__(self, graph: GraphStore, context: Optional[Context] = None, config: Optional[ReasoningConfig] = None):
         """
         Initialize rule engine with graph and reasoning context
         
@@ -34,45 +59,73 @@ class RuleEngine:
         self.graph = graph
         self.context = context
         self.max_iterations = 100  # Prevent infinite loops
+        self.config = config or ReasoningConfig()
         self.applied_rules: Set[str] = set()  # Track applied rule edges
         
     def forward_chain(self) -> List[Node]:
         """
-        Perform forward chaining to derive new facts
+        Perform forward chaining to derive new facts using an agenda-based loop.
+        This avoids full rescans each iteration by only re-checking rules whose
+        premises intersect with newly asserted facts.
         
         Returns:
             List of newly derived facts with provenance
         """
-        new_facts = []
-        iteration = 0
-        
-        while iteration < self.max_iterations:
-            iteration += 1
-            
-            # Get all rule edges that haven't been applied
-            applicable_rules = self._get_applicable_rules()
-            
-            # Track if we derived any new facts in this iteration
-            facts_derived_this_iteration = []
-            
-            for rule_edge in applicable_rules:
-                if rule_edge.id in self.applied_rules:
-                    continue
-                    
-                # Check if all premises are satisfied
-                if self._premises_satisfied(rule_edge):
-                    # Apply the rule and derive conclusions
-                    derived_facts = self._apply_rule(rule_edge)
-                    facts_derived_this_iteration.extend(derived_facts)
-                    new_facts.extend(derived_facts)
-                    
-                    # Mark rule as applied
+        new_facts: List[Node] = []
+        agenda: deque[str] = deque()
+
+        # Seed agenda with existing facts (and any pre-existing derived facts)
+        for ntype in ("Fact", "DerivedFact"):
+            try:
+                for n in self.graph.get_nodes_by_type(ntype):
+                    agenda.append(n.id)
+            except Exception:
+                # If store doesn't have the type index yet, continue gracefully
+                continue
+
+        steps = 0
+        max_steps = self.max_iterations * 100  # generous guard for agenda loop
+
+        while agenda and steps < max_steps:
+            steps += 1
+            node_id = agenda.popleft()
+
+            # For each rule that lists this node (by id or by statement) as a tail, test applicability
+            node = self.graph.get_node(node_id)
+            tail_keys = [node_id]
+            if node and isinstance(node.data, dict):
+                stmt = node.data.get("statement")
+                if stmt:
+                    tail_keys.append(stmt)
+
+            for tail_key in tail_keys:
+                try:
+                    outgoing_edges = self.graph.get_outgoing_edges(tail_key)
+                except Exception:
+                    outgoing_edges = []
+
+                for rule_edge in outgoing_edges:
+                    if rule_edge.relation != "implies":
+                        continue
+                    if rule_edge.id in self.applied_rules:
+                        continue
+                    if not self._is_rule_applicable(rule_edge):
+                        continue
+                    if not self._premises_satisfied(rule_edge):
+                        continue
+                    # Conflict suppression: only proceed if this edge is the winner
+                    if not self._is_conflict_winner(rule_edge):
+                        continue
+
+                    # Apply rule and enqueue any newly derived facts
+                    derived = self._apply_rule(rule_edge)
+                    if derived:
+                        new_facts.extend(derived)
+                        for dn in derived:
+                            agenda.append(dn.id)
+                    # Mark rule as applied to avoid re-firing
                     self.applied_rules.add(rule_edge.id)
-            
-            # If no new facts were derived, we've reached a fixed point
-            if not facts_derived_this_iteration:
-                break
-                
+
         return new_facts
         
     def _get_applicable_rules(self) -> List[Hyperedge]:
@@ -110,6 +163,23 @@ class RuleEngine:
                 
         return True
         
+    def _resolve_premise_nodes(self, identifier: str) -> List[Node]:
+        """
+        Resolve a premise identifier to candidate nodes.
+        Identifier may be a node id or a statement string.
+
+        Returns:
+            List[Node]: Candidate nodes (may be empty)
+        """
+        node = self.graph.get_node(identifier)
+        if node is not None:
+            return [node]
+        # Fallback to statement-indexed lookup if available
+        try:
+            return self.graph.get_nodes_by_statement(identifier)  # type: ignore[attr-defined]
+        except Exception:
+            return []
+
     def _premises_satisfied(self, rule_edge: Hyperedge) -> bool:
         """
         Check if all premises of a rule are satisfied by existing facts
@@ -121,23 +191,80 @@ class RuleEngine:
             True if all premises are satisfied
         """
         for tail_id in rule_edge.tails:
-            # First try direct node ID lookup
-            premise_node = self.graph.get_node(tail_id)
-            if premise_node is not None:
-                continue  # Found by ID
-                
-            # If not found by ID, try statement-based lookup
-            # This supports rules that use statement strings as premises
-            statement_found = False
-            fact_nodes = self.graph.get_nodes_by_type("Fact")
-            for node in fact_nodes:
-                if node.data.get("statement") == tail_id:
-                    statement_found = True
-                    break
-                    
-            if not statement_found:
+            candidates = self._resolve_premise_nodes(tail_id)
+            if not candidates:
                 return False
-                
+        return True
+
+    def _edge_priority_key(self, edge: Hyperedge) -> Tuple[int, int, float, int]:
+        """
+        Compute a priority key for an edge for conflict resolution.
+        Returns a tuple where higher is better:
+            (authority_rank, specificity, temporal_rank, priority)
+        """
+        # Authority rank from context.authority_level if available
+        level_order = {"federal": 3, "state": 2, "local": 1}
+        auth_rank = 0
+        try:
+            if edge.context and edge.context.authority_level:
+                auth_rank = level_order.get(edge.context.authority_level, 0)
+        except Exception:
+            auth_rank = 0
+
+        # Specificity: more premises => more specific
+        try:
+            specificity = len(edge.tails)
+        except Exception:
+            specificity = 0
+
+        # Temporal rank: newer valid_from is better
+        temporal_rank = 0.0
+        try:
+            if edge.context and edge.context.valid_from:
+                temporal_rank = edge.context.valid_from.timestamp()
+        except Exception:
+            temporal_rank = 0.0
+
+        # Explicit priority from qualifiers
+        try:
+            priority = int(edge.qualifiers.get("priority", 100))
+        except Exception:
+            priority = 100
+
+        return (auth_rank, specificity, temporal_rank, priority)
+
+    def _is_conflict_winner(self, edge: Hyperedge) -> bool:
+        """
+        Check if the provided edge is the winner among all applicable,
+        satisfied competing edges that produce the same head(s).
+        """
+        for head_id in edge.heads:
+            try:
+                competitors = self.graph.get_incoming_edges(head_id)
+            except Exception:
+                competitors = []
+
+            # Filter to rule edges only
+            competitors = [e for e in competitors if e.relation == "implies"]
+
+            # Keep only applicable and satisfied competitors
+            eligible: List[Hyperedge] = []
+            for e in competitors:
+                if not self._is_rule_applicable(e):
+                    continue
+                if not self._premises_satisfied(e):
+                    continue
+                eligible.append(e)
+
+            if not eligible:
+                # If no eligible competitor, our edge is winner by default
+                continue
+
+            # Choose the max by priority key
+            winner = max(eligible, key=self._edge_priority_key)
+            if winner.id != edge.id:
+                return False
+
         return True
         
     def _apply_rule(self, rule_edge: Hyperedge) -> List[Node]:
@@ -152,25 +279,32 @@ class RuleEngine:
         """
         derived_facts = []
         
-        # Get premise nodes for confidence calculation
-        premise_nodes = []
+        # Get premise nodes for confidence calculation (id or statement-indexed via helper)
+        premise_nodes: List[Node] = []
         for tail_id in rule_edge.tails:
-            # Try direct node ID lookup first
-            premise_node = self.graph.get_node(tail_id)
-            if premise_node:
-                premise_nodes.append(premise_node)
+            candidates = self._resolve_premise_nodes(tail_id)
+            if candidates:
+                best = max(candidates, key=lambda n: n.prov.confidence)
+                premise_nodes.append(best)
+
+        # Calculate derived confidence using configured aggregator
+        if self.config and getattr(self.config, "aggregator", "min") == "wgm":
+            prem_confs = [n.prov.confidence for n in premise_nodes]
+            if prem_confs:
+                product = 1.0
+                for c in prem_confs:
+                    product *= max(c, 1e-6)
+                gm = product ** (1.0 / len(prem_confs))
+                alpha = getattr(self.config, "alpha", 0.8)
+                rc = max(rule_edge.prov.confidence, 1e-6)
+                derived_confidence = (gm ** alpha) * (rc ** (1.0 - alpha))
             else:
-                # Try statement-based lookup
-                fact_nodes = self.graph.get_nodes_by_type("Fact")
-                for node in fact_nodes:
-                    if node.data.get("statement") == tail_id:
-                        premise_nodes.append(node)
-                        break
-                
-        # Calculate derived confidence (minimum of all inputs)
-        confidences = [node.prov.confidence for node in premise_nodes]
-        confidences.append(rule_edge.prov.confidence)
-        derived_confidence = min(confidences) if confidences else 0.8
+                # With no premises, use rule confidence as baseline
+                derived_confidence = rule_edge.prov.confidence or 0.8
+        else:
+            confidences = [node.prov.confidence for node in premise_nodes]
+            confidences.append(rule_edge.prov.confidence)
+            derived_confidence = min(confidences) if confidences else 0.8
         
         # Create provenance for derived facts
         derived_prov = Provenance(
@@ -461,6 +595,18 @@ def explain(graph: GraphStore, conclusion_id: str) -> Dict[str, Any]:
                     "statement": node.data.get("statement", ""),
                     "confidence": node.prov.confidence
                 }]
+            # Fallback: treat node_id as a statement string
+            try:
+                fallback_nodes = graph.get_nodes_by_statement(node_id)  # type: ignore[attr-defined]
+            except Exception:
+                fallback_nodes = []
+            if fallback_nodes:
+                return [{
+                    "id": n.id,
+                    "type": n.type,
+                    "statement": n.data.get("statement", ""),
+                    "confidence": n.prov.confidence
+                } for n in fallback_nodes]
             return []
         
         # For each supporting edge, collect premises recursively
@@ -485,19 +631,33 @@ def explain(graph: GraphStore, conclusion_id: str) -> Dict[str, Any]:
                 "text": edge.qualifiers.get("rule_text", ""),
                 "relation": edge.relation
             },
-            "confidence": edge.prov.confidence
+            "confidence": edge.prov.confidence,
+            "path_confidence": None
         }
         
         # Get immediate premise information AND trace back recursively
         for tail_id in edge.tails:
             premise_node = graph.get_node(tail_id)
+            if premise_node is None:
+                # Fallback to statement-based lookup
+                try:
+                    candidates = graph.get_nodes_by_statement(tail_id)  # type: ignore[attr-defined]
+                except Exception:
+                    candidates = []
+                if candidates:
+                    premise_node = max(candidates, key=lambda n: n.prov.confidence)
+
             if premise_node:
+                # Heuristic "critical" flag when single-edge/single-premise support
+                is_critical = (len(edge.tails) == 1) and (len(supporting_edges) == 1)
+
                 # Add immediate premise
                 premise_info = {
                     "id": premise_node.id,
                     "type": premise_node.type,
                     "statement": premise_node.data.get("statement", ""),
-                    "confidence": premise_node.prov.confidence
+                    "confidence": premise_node.prov.confidence,
+                    "critical": is_critical
                 }
                 support["premises"].append(premise_info)
                 
@@ -507,12 +667,18 @@ def explain(graph: GraphStore, conclusion_id: str) -> Dict[str, Any]:
                     # Add original premises if they're not already included
                     if not any(p["id"] == orig_premise["id"] for p in support["premises"]):
                         support["premises"].append(orig_premise)
-                
-                # Update minimum confidence
-                min_confidence = min(min_confidence, premise_node.prov.confidence)
-                
-        # Update minimum confidence with rule confidence
-        min_confidence = min(min_confidence, edge.prov.confidence)
+        
+        # Compute path-level confidence: min over rule and collected premises
+        if support["premises"]:
+            path_c = edge.prov.confidence
+            for p in support["premises"]:
+                path_c = min(path_c, p.get("confidence", 1.0))
+            support["path_confidence"] = path_c
+            min_confidence = min(min_confidence, path_c)
+        else:
+            # No premises materialized; fall back to rule confidence
+            support["path_confidence"] = edge.prov.confidence
+            min_confidence = min(min_confidence, edge.prov.confidence)
         
         explanation["supports"].append(support)
         

@@ -27,6 +27,24 @@ The OpenLaw system uses a combination of:
 2. Configuration files
 3. Default values (lowest priority)
 
+## Native Legal Configuration (quick reference)
+
+- Courts and clause weights (+ optional hierarchy/overrides): [config/courts.yaml](config/courts.yaml:1)
+- Authority multipliers (recency, jurisdiction alignment, court levels, treatment modifiers): [config/precedent_weights.yaml](config/precedent_weights.yaml:1)
+- Statutory interpretation preferences (styles: textualism, purposivism, lenity): [config/statutory_prefs.yaml](config/statutory_prefs.yaml:1)
+- Export redaction rules (labels_blocklist etc.): [config/compliance/redaction_rules.yml](config/compliance/redaction_rules.yml:1)
+
+Validation and strict mode
+- The native adapter validates these configs on startup; enable fail-fast by passing strict_mode=True to [NativeLegalBridge.__init__()](core/adapters/native_bridge.py:55)
+  - Courts validator: [_validate_courts_cfg()](core/adapters/native_bridge.py:127)
+  - Precedent weights validator: [_validate_precedent_cfg()](core/adapters/native_bridge.py:158)
+  - Statutory prefs validator: [_validate_statutory_prefs_cfg()](core/adapters/native_bridge.py:181)
+
+How the configuration is used
+- Clause-class weights (controlling/persuasive/contrary) are selected and tuned in [build_rules_for_claim_native()](core/rules_native/native_legal_builder.py:373)
+- Authority multipliers are computed from graph metadata and [precedent_weights.yaml](config/precedent_weights.yaml:1) in [_compute_authority_multipliers()](core/adapters/native_bridge.py:325) and applied to the top-level support rule in [build_rules_for_claim()](core/adapters/native_bridge.py:450)
+- Exports respect privacy profiles and redaction policies via [Interpretation.export()](core/native/interpretation.py:127) and [export_interpretation()](core/adapters/native_bridge.py:536)
+
 ## Environment Variables
 
 ### Core System

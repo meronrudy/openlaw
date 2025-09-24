@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
+          http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+
+  <!-- Node attribute keys -->
+  <key id="case_id" for="node" attr.name="case_id" attr.type="string"/>
+  <key id="precedential" for="node" attr.name="precedential" attr.type="double"/>
+
+  <!-- Edge attribute keys -->
+  <key id="cites" for="edge" attr.name="cites" attr.type="double"/>
+  <key id="same_issue" for="edge" attr.name="same_issue" attr.type="double"/>
+  <key id="controlling_relation" for="edge" attr.name="controlling_relation" attr.type="double"/>
+
+  <graph edgedefault="directed">
+    <node id="A">
+      <data key="case_id">A</data>
+    </node>
+    <node id="B">
+      <data key="case_id">B</data>
+      <data key="precedential">1.0</data>
+    </node>
+    <edge id="A_B" source="A" target="B">
+      <data key="cites">1.0</data>
+      <data key="same_issue">1.0</data>
+      <data key="controlling_relation">1.0</data>
+    </edge>
+  </graph>
+</graphml>

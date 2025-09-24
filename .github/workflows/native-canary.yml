@@ -1,0 +1,126 @@
+name: Native Engine Canary (Staging)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "canary", "staging" ]
+
+jobs:
+  canary-native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies (project + tests)
+        run: |
+          python -m pip install --upgrade pip
+          # Install project in editable mode if pyproject present
+          if [ -f "pyproject.toml" ]; then
+            pip install -e .
+          fi
+          pip install pytest
+          # Best-effort PyReason deps for parity; do not fail canary if missing
+          if [ -f pyreason/requirements.txt ]; then pip install -r pyreason/requirements.txt || true; fi
+
+      - name: Run Native Canary - Dual Validate (Native vs PyReason baseline)
+        env:
+          # Canary runs biased to Native engine
+          LEGAL_ENGINE_IMPL: "native"
+          NATIVE_ENGINE_EMIT_FACTS: "1"
+        run: |
+          set -e
+          mkdir -p canary_reports
+          echo "::group::friends_graph (US-CA, breach_of_contract)"
+          python scripts/migrate/dual_validate.py \
+            --graph examples/graphs/friends_graph.graphml \
+            --claim breach_of_contract \
+            --jurisdiction US-CA \
+            --tmax 1 \
+            --emit-native-facts | tee canary_reports/friends_us-ca_breach_t1.json || true
+          echo "::endgroup::"
+
+          echo "::group::group_chat_graph (US-CA, breach_of_contract)"
+          python scripts/migrate/dual_validate.py \
+            --graph examples/graphs/group_chat_graph.graphml \
+            --claim breach_of_contract \
+            --jurisdiction US-CA \
+            --tmax 1 \
+            --emit-native-facts | tee canary_reports/groupchat_us-ca_breach_t1.json || true
+          echo "::endgroup::"
+
+      - name: Upload canary parity artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-parity-reports
+          path: canary_reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Run Native Benchmark Smoke
+        run: |
+          set -e
+          mkdir -p bench
+          python scripts/bench/native_bench.py | tee bench/bench_smoke.txt || true
+
+      - name: Upload benchmark logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-bench-logs
+          path: bench/bench_smoke.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Run Golden Parity Tests (Auto-freeze if missing)
+        env:
+          LEGAL_ENGINE_IMPL: "pyreason"
+          NATIVE_ENGINE_EMIT_FACTS: "1"
+        run: |
+          # Parity tests skip when PyReason env not available; treat as soft canary
+          pytest -q tests/native/test_golden_parity.py || true
+
+      - name: Summarize parity results
+        run: |
+          python - <<'PY'
+          import json, glob, os, sys
+          summary_lines = ["## Canary Parity Summary"]
+          for path in sorted(glob.glob("canary_reports/*.json")):
+              try:
+                  with open(path, "r") as f:
+                      data = json.load(f)
+                  match = data.get("match")
+                  reason = data.get("reason", "")
+                  left_only = data.get("left_only", [])
+                  right_only = data.get("right_only", [])
+                  k = os.path.basename(path)
+                  if match is True:
+                      summary_lines.append(f"- {k}: MATCH ✅")
+                  else:
+                      summary_lines.append(f"- {k}: MISMATCH ❌ reason={reason} left_only={len(left_only)} right_only={len(right_only)}")
+              except Exception as e:
+                  summary_lines.append(f"- {os.path.basename(path)}: ERROR parsing JSON ({e})")
+          with open(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/stdout"), "a") as out:
+              out.write("\\n".join(summary_lines) + "\\n")
+          # Also write a release notes snippet artifact
+          os.makedirs("release_notes", exist_ok=True)
+          with open("release_notes/parity_summary.md", "w") as outf:
+              outf.write("\\n".join(summary_lines) + "\\n")
+          PY
+
+      - name: Upload parity summary for release notes
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes-parity-summary
+          path: release_notes/parity_summary.md
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Report note
+        run: |
+          echo "This canary is non-gating. Review parity JSON outputs and benchmark logs in the uploaded artifacts. A summary was added to the job summary and saved as an artifact."
